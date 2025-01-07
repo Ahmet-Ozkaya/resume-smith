@@ -5,7 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
-const JobDescription = () => {
+interface JobDescriptionProps {
+  onAnalysisComplete: (resumeContent: string, coverLetter: string) => void;
+}
+
+const JobDescription = ({ onAnalysisComplete }: JobDescriptionProps) => {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const { toast } = useToast();
@@ -21,8 +25,6 @@ const JobDescription = () => {
     }
 
     try {
-      // Here you would typically make an API call to analyze the job description
-      // For now, we'll just show a success toast
       toast({
         title: "Analysis started",
         description: "Your job description is being analyzed...",
@@ -31,9 +33,38 @@ const JobDescription = () => {
       // Simulate analysis delay
       await new Promise(resolve => setTimeout(resolve, 1500));
 
+      // For demonstration, generate some sample content
+      const sampleResumeContent = `TAILORED RESUME
+-----------------
+[Based on job description${url ? ' from URL' : ''}: ${url || description}]
+
+Professional Summary:
+- Experienced professional with relevant skills
+- Proven track record in similar roles
+- Adaptable and quick learner
+
+Skills:
+- Skill 1
+- Skill 2
+- Skill 3
+
+Experience:
+...`;
+
+      const sampleCoverLetter = `Dear Hiring Manager,
+
+I am writing to express my strong interest in the position at your company. Based on the job description${url ? ' from URL' : ''}: ${url || description}
+
+I believe my skills and experience make me an excellent candidate...
+
+Best regards,
+[Your name]`;
+
+      onAnalysisComplete(sampleResumeContent, sampleCoverLetter);
+
       toast({
         title: "Analysis complete",
-        description: "Job description has been successfully analyzed.",
+        description: "Your tailored resume and cover letter are ready for preview.",
       });
     } catch (error) {
       toast({
