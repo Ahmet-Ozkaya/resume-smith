@@ -7,12 +7,78 @@ import { useToast } from "@/hooks/use-toast";
 
 interface JobDescriptionProps {
   onAnalysisComplete: (resumeContent: string, coverLetter: string) => void;
+  uploadedResumeText?: string;
 }
 
-const JobDescription = ({ onAnalysisComplete }: JobDescriptionProps) => {
+const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescriptionProps) => {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const { toast } = useToast();
+
+  const extractKeywords = (text: string): string[] => {
+    // Simple keyword extraction (could be enhanced with NLP libraries)
+    const commonWords = new Set(['and', 'or', 'the', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an']);
+    return text.toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !commonWords.has(word));
+  };
+
+  const analyzeContent = (jobText: string, resumeText: string = "") => {
+    const jobKeywords = new Set(extractKeywords(jobText));
+    const resumeKeywords = new Set(extractKeywords(resumeText));
+
+    // Find missing skills/keywords
+    const missingSkills = Array.from(jobKeywords)
+      .filter(keyword => !resumeKeywords.has(keyword));
+
+    // Generate enhanced resume content
+    const enhancedResume = generateEnhancedResume(resumeText, jobText, missingSkills);
+    const coverLetter = generateCoverLetter(jobText, missingSkills);
+
+    return { enhancedResume, coverLetter, missingSkills };
+  };
+
+  const generateEnhancedResume = (originalResume: string, jobDescription: string, missingSkills: string[]) => {
+    const relevantExperience = originalResume || "Previous work experience";
+    
+    return `ENHANCED RESUME
+-----------------
+[Tailored for position based on job description${url ? ' from URL' : ''}: ${url || description}]
+
+Professional Summary:
+- Experienced professional with demonstrated expertise in required skills
+- Actively developing competency in: ${missingSkills.join(', ')}
+- Strong foundation in existing skills with quick learning capabilities
+
+Key Skills:
+${Array.from(new Set(extractKeywords(jobDescription)))
+  .map(skill => `- ${skill}`)
+  .join('\n')}
+
+Relevant Experience:
+${relevantExperience}
+
+Additional Skills Development:
+- Currently enhancing expertise in: ${missingSkills.join(', ')}
+- Actively pursuing professional development in identified areas
+`;
+  };
+
+  const generateCoverLetter = (jobDescription: string, missingSkills: string[]) => {
+    return `Dear Hiring Manager,
+
+I am writing to express my strong interest in the position at your company. After carefully reviewing the job description${url ? ' from URL' : ''}: ${url || description}, I am confident in my ability to contribute effectively to your team.
+
+While I have extensive experience in many of the required areas, I am particularly excited about the opportunity to develop my skills further in ${missingSkills.join(', ')}. I am a quick learner and have a proven track record of rapidly acquiring new competencies.
+
+My background includes relevant experience in ${extractKeywords(jobDescription).slice(0, 3).join(', ')}, and I am actively expanding my expertise to encompass all aspects of the role.
+
+I look forward to discussing how my skills and enthusiasm align with your team's needs.
+
+Best regards,
+[Your name]`;
+  };
 
   const handleAnalyze = async () => {
     if (!url && !description) {
@@ -27,44 +93,22 @@ const JobDescription = ({ onAnalysisComplete }: JobDescriptionProps) => {
     try {
       toast({
         title: "Analysis started",
-        description: "Your job description is being analyzed...",
+        description: "Analyzing job description and comparing with your resume...",
       });
 
       // Simulate analysis delay
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // For demonstration, generate some sample content
-      const sampleResumeContent = `TAILORED RESUME
------------------
-[Based on job description${url ? ' from URL' : ''}: ${url || description}]
+      const jobText = description || url;
+      const { enhancedResume, coverLetter, missingSkills } = analyzeContent(jobText, uploadedResumeText);
 
-Professional Summary:
-- Experienced professional with relevant skills
-- Proven track record in similar roles
-- Adaptable and quick learner
-
-Skills:
-- Skill 1
-- Skill 2
-- Skill 3
-
-Experience:
-...`;
-
-      const sampleCoverLetter = `Dear Hiring Manager,
-
-I am writing to express my strong interest in the position at your company. Based on the job description${url ? ' from URL' : ''}: ${url || description}
-
-I believe my skills and experience make me an excellent candidate...
-
-Best regards,
-[Your name]`;
-
-      onAnalysisComplete(sampleResumeContent, sampleCoverLetter);
+      onAnalysisComplete(enhancedResume, coverLetter);
 
       toast({
         title: "Analysis complete",
-        description: "Your tailored resume and cover letter are ready for preview.",
+        description: missingSkills.length > 0 
+          ? `Identified ${missingSkills.length} skills to develop: ${missingSkills.join(', ')}`
+          : "Your profile matches well with the job requirements!",
       });
     } catch (error) {
       toast({

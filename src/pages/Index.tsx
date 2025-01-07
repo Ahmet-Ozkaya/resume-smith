@@ -9,11 +9,16 @@ import { useToast } from "@/hooks/use-toast";
 const Index = () => {
   const [previewContent, setPreviewContent] = useState<string>("");
   const [coverLetterContent, setCoverLetterContent] = useState<string>("");
+  const [resumeContent, setResumeContent] = useState<string>("");
   const { toast } = useToast();
 
   const handleAnalysisComplete = (resumeContent: string, coverLetter: string) => {
     setPreviewContent(resumeContent);
     setCoverLetterContent(coverLetter);
+  };
+
+  const handleResumeContent = (content: string) => {
+    setResumeContent(content);
   };
 
   const handleDownload = (type: 'resume' | 'cover-letter') => {
@@ -54,8 +59,11 @@ const Index = () => {
 
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-8">
-              <ResumeUpload />
-              <JobDescription onAnalysisComplete={handleAnalysisComplete} />
+              <ResumeUpload onResumeContent={handleResumeContent} />
+              <JobDescription 
+                onAnalysisComplete={handleAnalysisComplete}
+                uploadedResumeText={resumeContent}
+              />
             </div>
 
             <div className="bg-white rounded-lg shadow-lg p-6 animate-fadeIn">

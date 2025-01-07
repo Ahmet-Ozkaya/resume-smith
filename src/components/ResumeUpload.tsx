@@ -4,31 +4,56 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const ResumeUpload = () => {
+interface ResumeUploadProps {
+  onResumeContent: (content: string) => void;
+}
+
+const ResumeUpload = ({ onResumeContent }: ResumeUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const readFileContent = async (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        resolve(event.target?.result as string);
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
     if (uploadedFile) {
       // Validate file type
-      const validTypes = ['.pdf', '.doc', '.docx'];
+      const validTypes = ['.pdf', '.doc', '.docx', '.txt'];
       const fileExtension = uploadedFile.name.toLowerCase().slice(uploadedFile.name.lastIndexOf('.'));
       
       if (!validTypes.includes(fileExtension)) {
         toast({
           title: "Invalid file type",
-          description: "Please upload a PDF or Word document",
+          description: "Please upload a PDF, Word document, or text file",
           variant: "destructive",
         });
         return;
       }
 
       setFile(uploadedFile);
-      toast({
-        title: "Resume uploaded",
-        description: `File "${uploadedFile.name}" has been uploaded successfully.`,
-      });
+      try {
+        const content = await readFileContent(uploadedFile);
+        onResumeContent(content);
+        toast({
+          title: "Resume uploaded",
+          description: `File "${uploadedFile.name}" has been uploaded and processed successfully.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error reading file",
+          description: "Failed to read the file content. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -74,7 +99,7 @@ const ResumeUpload = () => {
           </p>
           <input
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.doc,.docx,.txt"
             onChange={handleFileUpload}
             className="hidden"
             id="resume-upload"
