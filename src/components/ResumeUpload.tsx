@@ -36,7 +36,20 @@ const ResumeUpload = () => {
     event.preventDefault();
     const droppedFile = event.dataTransfer.files[0];
     if (droppedFile) {
-      handleFileUpload({ target: { files: [droppedFile] } } as React.ChangeEvent<HTMLInputElement>);
+      // Create a new input element
+      const input = document.createElement('input');
+      input.type = 'file';
+      
+      // Create a new FileList-like object
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(droppedFile);
+      input.files = dataTransfer.files;
+
+      // Create a synthetic change event
+      const changeEvent = new Event('change', { bubbles: true });
+      Object.defineProperty(changeEvent, 'target', { value: input });
+
+      handleFileUpload(changeEvent as unknown as React.ChangeEvent<HTMLInputElement>);
     }
   };
 
