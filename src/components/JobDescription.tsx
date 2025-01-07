@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { callDeepseekApi } from "@/services/deepseekApi";
 
 interface JobDescriptionProps {
   onAnalysisComplete: (resumeContent: string, coverLetter: string) => void;
@@ -13,10 +14,11 @@ interface JobDescriptionProps {
 const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescriptionProps) => {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [apiUrl, setApiUrl] = useState("https://api.deepseek.com/v1/chat/completions");
   const { toast } = useToast();
 
   const extractKeywords = (text: string): string[] => {
-    // Simple keyword extraction (could be enhanced with NLP libraries)
     const commonWords = new Set(['and', 'or', 'the', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an']);
     return text.toLowerCase()
       .replace(/[^\w\s]/g, '')
@@ -24,60 +26,58 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
       .filter(word => word.length > 2 && !commonWords.has(word));
   };
 
-  const analyzeContent = (jobText: string, resumeText: string = "") => {
+  const generatePrompt = (jobText: string, resumeText: string, missingSkills: string[]) => {
+    return `
+      Job Description: ${jobText}
+      
+      Current Resume: ${resumeText}
+      
+      Missing Skills: ${missingSkills.join(', ')}
+      
+      Please generate a professional resume that incorporates the job requirements and addresses the missing skills. 
+      Format the resume professionally and highlight relevant experience and skills.
+      Also, generate a matching cover letter that emphasizes how the candidate's experience aligns with the job requirements.
+      
+      Return the response in the following format:
+      ---RESUME---
+      [Resume content here]
+      ---COVER_LETTER---
+      [Cover letter content here]
+    `;
+  };
+
+  const analyzeContent = async (jobText: string, resumeText: string = "") => {
     const jobKeywords = new Set(extractKeywords(jobText));
     const resumeKeywords = new Set(extractKeywords(resumeText));
-
-    // Find missing skills/keywords
     const missingSkills = Array.from(jobKeywords)
       .filter(keyword => !resumeKeywords.has(keyword));
 
-    // Generate enhanced resume content
-    const enhancedResume = generateEnhancedResume(resumeText, jobText, missingSkills);
-    const coverLetter = generateCoverLetter(jobText, missingSkills);
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your Deepseek API key to proceed with the analysis.",
+        variant: "destructive",
+      });
+      return null;
+    }
 
-    return { enhancedResume, coverLetter, missingSkills };
-  };
+    try {
+      const prompt = generatePrompt(jobText, resumeText, missingSkills);
+      const response = await callDeepseekApi(prompt, apiKey, apiUrl);
+      
+      const [resume, coverLetter] = response.split('---COVER_LETTER---');
+      const cleanedResume = resume.replace('---RESUME---', '').trim();
+      const cleanedCoverLetter = coverLetter.trim();
 
-  const generateEnhancedResume = (originalResume: string, jobDescription: string, missingSkills: string[]) => {
-    const relevantExperience = originalResume || "Previous work experience";
-    
-    return `ENHANCED RESUME
------------------
-[Tailored for position based on job description${url ? ' from URL' : ''}: ${url || description}]
-
-Professional Summary:
-- Experienced professional with demonstrated expertise in required skills
-- Actively developing competency in: ${missingSkills.join(', ')}
-- Strong foundation in existing skills with quick learning capabilities
-
-Key Skills:
-${Array.from(new Set(extractKeywords(jobDescription)))
-  .map(skill => `- ${skill}`)
-  .join('\n')}
-
-Relevant Experience:
-${relevantExperience}
-
-Additional Skills Development:
-- Currently enhancing expertise in: ${missingSkills.join(', ')}
-- Actively pursuing professional development in identified areas
-`;
-  };
-
-  const generateCoverLetter = (jobDescription: string, missingSkills: string[]) => {
-    return `Dear Hiring Manager,
-
-I am writing to express my strong interest in the position at your company. After carefully reviewing the job description${url ? ' from URL' : ''}: ${url || description}, I am confident in my ability to contribute effectively to your team.
-
-While I have extensive experience in many of the required areas, I am particularly excited about the opportunity to develop my skills further in ${missingSkills.join(', ')}. I am a quick learner and have a proven track record of rapidly acquiring new competencies.
-
-My background includes relevant experience in ${extractKeywords(jobDescription).slice(0, 3).join(', ')}, and I am actively expanding my expertise to encompass all aspects of the role.
-
-I look forward to discussing how my skills and enthusiasm align with your team's needs.
-
-Best regards,
-[Your name]`;
+      return {
+        enhancedResume: cleanedResume,
+        coverLetter: cleanedCoverLetter,
+        missingSkills,
+      };
+    } catch (error) {
+      console.error("Error generating content:", error);
+      throw error;
+    }
   };
 
   const handleAnalyze = async () => {
@@ -96,20 +96,20 @@ Best regards,
         description: "Analyzing job description and comparing with your resume...",
       });
 
-      // Simulate analysis delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       const jobText = description || url;
-      const { enhancedResume, coverLetter, missingSkills } = analyzeContent(jobText, uploadedResumeText);
+      const result = await analyzeContent(jobText, uploadedResumeText);
+      
+      if (result) {
+        const { enhancedResume, coverLetter, missingSkills } = result;
+        onAnalysisComplete(enhancedResume, coverLetter);
 
-      onAnalysisComplete(enhancedResume, coverLetter);
-
-      toast({
-        title: "Analysis complete",
-        description: missingSkills.length > 0 
-          ? `Identified ${missingSkills.length} skills to develop: ${missingSkills.join(', ')}`
-          : "Your profile matches well with the job requirements!",
-      });
+        toast({
+          title: "Analysis complete",
+          description: missingSkills.length > 0 
+            ? `Identified ${missingSkills.length} skills to develop: ${missingSkills.join(', ')}`
+            : "Your profile matches well with the job requirements!",
+        });
+      }
     } catch (error) {
       toast({
         title: "Analysis failed",
@@ -143,6 +143,22 @@ Best regards,
             className="min-h-[200px] w-full"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Input
+            type="password"
+            placeholder="Enter Deepseek API Key"
+            className="w-full"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <Input
+            type="url"
+            placeholder="API Base URL (optional)"
+            className="w-full"
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
           />
         </div>
         <Button 
