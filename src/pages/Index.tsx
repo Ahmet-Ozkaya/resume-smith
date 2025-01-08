@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import ResumeUpload from "@/components/ResumeUpload";
 import JobDescription from "@/components/JobDescription";
-import ModelSelector from "@/components/ModelSelector";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -53,10 +52,6 @@ const Index = () => {
 
       <main className="container mx-auto px-4 pb-16">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <ModelSelector />
-          </div>
-
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-8">
               <ResumeUpload onResumeContent={handleResumeContent} />
