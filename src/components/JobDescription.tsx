@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,9 +14,16 @@ interface JobDescriptionProps {
 const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescriptionProps) => {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [apiUrl, setApiUrl] = useState("https://api.deepseek.com/v1/chat/completions");
   const { toast } = useToast();
+  const apiUrl = "https://api.deepseek.com/v1/chat/completions";
+
+  // Initialize API key from localStorage
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem('deepseekApiKey');
+    if (!storedApiKey) {
+      localStorage.setItem('deepseekApiKey', 'sk-37a9809e7b6043bca05378f0f04e823c');
+    }
+  }, []);
 
   const extractKeywords = (text: string | undefined): string[] => {
     if (!text) return [];
@@ -58,10 +65,11 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
     const missingSkills = Array.from(jobKeywords)
       .filter(keyword => !resumeKeywords.has(keyword));
 
+    const apiKey = localStorage.getItem('deepseekApiKey');
     if (!apiKey) {
       toast({
-        title: "API Key Required",
-        description: "Please enter your Deepseek API key to proceed with the analysis.",
+        title: "API Key Error",
+        description: "Could not retrieve API key. Please refresh the page.",
         variant: "destructive",
       });
       return null;
@@ -163,22 +171,6 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
             className="min-h-[200px] w-full"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Input
-            type="password"
-            placeholder="Enter Deepseek API Key"
-            className="w-full"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <Input
-            type="url"
-            placeholder="API Base URL (optional)"
-            className="w-full"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
           />
         </div>
         <Button 
