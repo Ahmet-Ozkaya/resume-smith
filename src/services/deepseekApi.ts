@@ -1,5 +1,9 @@
 interface DeepseekResponse {
-  text: string;
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
 }
 
 export const callDeepseekApi = async (
@@ -26,7 +30,12 @@ export const callDeepseekApi = async (
     }
 
     const data: DeepseekResponse = await response.json();
-    return data.text;
+    
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      throw new Error("Invalid response format from API");
+    }
+
+    return data.choices[0].message.content;
   } catch (error) {
     console.error("Error calling Deepseek API:", error);
     throw error;

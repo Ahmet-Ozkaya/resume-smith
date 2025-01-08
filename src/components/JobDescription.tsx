@@ -77,7 +77,10 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
 
     try {
       const prompt = generatePrompt(jobText, resumeText, missingSkills);
+      console.log("Sending prompt to API:", prompt); // Debug log
+      
       const response = await callDeepseekApi(prompt, apiKey, apiUrl);
+      console.log("Received API response:", response); // Debug log
       
       if (!response) {
         throw new Error("No response received from API");
@@ -85,6 +88,7 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
 
       const parts = response.split('---COVER_LETTER---');
       if (parts.length !== 2) {
+        console.error("Invalid response format:", response); // Debug log
         throw new Error("Invalid response format from API");
       }
 
