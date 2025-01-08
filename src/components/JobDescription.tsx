@@ -18,7 +18,9 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
   const [apiUrl, setApiUrl] = useState("https://api.deepseek.com/v1/chat/completions");
   const { toast } = useToast();
 
-  const extractKeywords = (text: string): string[] => {
+  const extractKeywords = (text: string | undefined): string[] => {
+    if (!text) return [];
+    
     const commonWords = new Set(['and', 'or', 'the', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an']);
     return text.toLowerCase()
       .replace(/[^\w\s]/g, '')
@@ -47,6 +49,10 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
   };
 
   const analyzeContent = async (jobText: string, resumeText: string = "") => {
+    if (!jobText) {
+      throw new Error("Job description is required");
+    }
+
     const jobKeywords = new Set(extractKeywords(jobText));
     const resumeKeywords = new Set(extractKeywords(resumeText));
     const missingSkills = Array.from(jobKeywords)
@@ -65,9 +71,22 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
       const prompt = generatePrompt(jobText, resumeText, missingSkills);
       const response = await callDeepseekApi(prompt, apiKey, apiUrl);
       
-      const [resume, coverLetter] = response.split('---COVER_LETTER---');
+      if (!response) {
+        throw new Error("No response received from API");
+      }
+
+      const parts = response.split('---COVER_LETTER---');
+      if (parts.length !== 2) {
+        throw new Error("Invalid response format from API");
+      }
+
+      const [resume, coverLetter] = parts;
       const cleanedResume = resume.replace('---RESUME---', '').trim();
       const cleanedCoverLetter = coverLetter.trim();
+
+      if (!cleanedResume || !cleanedCoverLetter) {
+        throw new Error("Invalid response content from API");
+      }
 
       return {
         enhancedResume: cleanedResume,
@@ -97,7 +116,7 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
       });
 
       const jobText = description || url;
-      const result = await analyzeContent(jobText, uploadedResumeText);
+      const result = await analyzeContent(jobText, uploadedResumeText || "");
       
       if (result) {
         const { enhancedResume, coverLetter, missingSkills } = result;
@@ -111,9 +130,10 @@ const JobDescription = ({ onAnalysisComplete, uploadedResumeText }: JobDescripti
         });
       }
     } catch (error) {
+      console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
-        description: "There was an error analyzing the job description.",
+        description: error instanceof Error ? error.message : "There was an error analyzing the job description.",
         variant: "destructive",
       });
     }
